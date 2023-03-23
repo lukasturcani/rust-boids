@@ -4,12 +4,20 @@ use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+const BOID_TIMESTEP: f32 = 1.0 / 60.0;
+const NUM_BOIDS: usize = 200;
+const BOX_SIZE: f32 = 100.0;
+const MAX_BOID_VELOCITY: f32 = 2.0;
+
 struct Boids;
 
 impl Plugin for Boids {
     fn build(&self, app: &mut App) {
+        app.insert_resource(FixedTime::new_from_secs(BOID_TIMESTEP));
+        app.insert_resource(Generator(StdRng::seed_from_u64(55)));
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
+        app.add_system(move_boids.in_schedule(CoreSchedule::FixedUpdate));
     }
 }
 
@@ -26,8 +34,8 @@ fn setup(mut commands: Commands) {
     });
 }
 
-const NUM_BOIDS: usize = 200;
-const BOX_SIZE: f32 = 100.0;
+#[derive(Component)]
+struct Velocity(Vec2);
 
 fn spawn_boids(
     mut generator: ResMut<Generator>,
@@ -35,34 +43,40 @@ fn spawn_boids(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let boid_translations: Vec<_> = (&mut generator.0)
+    let boids: Vec<_> = (&mut generator.0)
         .sample_iter(Standard)
-        .map(|(x, y, angle): (f32, f32, f32)| Transform {
-            translation: Vec3::new(
-                x * BOX_SIZE - 0.5 * BOX_SIZE,
-                y * BOX_SIZE - 0.5 * BOX_SIZE,
-                0.0,
-            ),
-            rotation: Quat::from_rotation_z(angle),
-            ..default()
-        })
-        .map(|transform| MaterialMesh2dBundle {
-            transform,
-            mesh: meshes
-                .add(Mesh::from(shape::RegularPolygon::new(1.0, 3)))
-                .into(),
-            material: materials.add(ColorMaterial::from(Color::PURPLE)),
-            ..default()
+        .map(|[x, y, angle, vx, vy]: [f32; 5]| {
+            (
+                MaterialMesh2dBundle {
+                    transform: Transform {
+                        translation: Vec3::new((x - 0.5) * BOX_SIZE, (y - 0.5) * BOX_SIZE, 0.0),
+                        rotation: Quat::from_rotation_z(angle),
+                        ..default()
+                    },
+                    mesh: meshes
+                        .add(Mesh::from(shape::RegularPolygon::new(1.0, 3)))
+                        .into(),
+                    material: materials.add(ColorMaterial::from(Color::PURPLE)),
+                    ..default()
+                },
+                Velocity((Vec2::new(vx, vy) - 0.5) * MAX_BOID_VELOCITY),
+            )
         })
         .take(NUM_BOIDS)
         .collect();
 
-    commands.spawn_batch(boid_translations);
+    commands.spawn_batch(boids);
+}
+
+fn move_boids(mut boids: Query<(&mut Transform, &Velocity)>, time_step: Res<FixedTime>) {
+    for (mut transform, velocity) in boids.iter_mut() {
+        transform.translation.x += velocity.0.x * time_step.period.as_secs_f32();
+        transform.translation.y += velocity.0.y * time_step.period.as_secs_f32();
+    }
 }
 
 fn main() {
     App::new()
-        .insert_resource(Generator(StdRng::seed_from_u64(55)))
         .add_plugins(DefaultPlugins)
         .add_plugin(Boids)
         .run();
