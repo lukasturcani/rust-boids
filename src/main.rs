@@ -37,8 +37,15 @@ fn spawn_boids(
 ) {
     let boid_translations: Vec<_> = (&mut generator.0)
         .sample_iter(Standard)
-        .map(Vec3::from_array)
-        .map(|translation| Transform::from_translation(translation * BOX_SIZE - 0.5 * BOX_SIZE))
+        .map(|(x, y, angle): (f32, f32, f32)| Transform {
+            translation: Vec3::new(
+                x * BOX_SIZE - 0.5 * BOX_SIZE,
+                y * BOX_SIZE - 0.5 * BOX_SIZE,
+                0.0,
+            ),
+            rotation: Quat::from_rotation_z(angle),
+            ..default()
+        })
         .map(|transform| MaterialMesh2dBundle {
             transform,
             mesh: meshes
