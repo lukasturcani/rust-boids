@@ -9,12 +9,20 @@ use rand::{Rng, SeedableRng};
 const BOID_TIMESTEP: f32 = 1.0 / 60.0;
 const NUM_BOIDS: usize = 200;
 const BOX_SIZE: f32 = 100.0;
-const MAX_BOID_VELOCITY: f32 = 10.0;
-const SEPARATION_RADIUS: f32 = 5.0;
-const SEPARATION_COEFFICIENT: f32 = 1.0;
-const VISIBLE_RADIUS: f32 = SEPARATION_RADIUS + 5.0;
-const ALIGNMENT_COEFFICIENT: f32 = 1.0;
-const COHESION_COEFFICIENT: f32 = 1.0;
+const LEFT_MARGIN: f32 = 0. - BOX_SIZE * 0.5;
+const RIGHT_MARGIN: f32 = BOX_SIZE * 0.5;
+const TOP_MARGIN: f32 = RIGHT_MARGIN;
+const BOTTOM_MARGIN: f32 = LEFT_MARGIN;
+
+const MAX_BOID_SPEED: f32 = 60.0;
+const MIN_BOID_SPEED: f32 = 15.0;
+const BOID_SPEED_RANGE: f32 = MAX_BOID_SPEED - MIN_BOID_SPEED;
+const SEPARATION_RADIUS: f32 = 3.0;
+const SEPARATION_COEFFICIENT: f32 = 0.1;
+const VISIBLE_RADIUS: f32 = 6.0;
+const ALIGNMENT_COEFFICIENT: f32 = 0.005;
+const COHESION_COEFFICIENT: f32 = 0.0005;
+const BOX_BOUND_COEFFICIENT: f32 = 0.2;
 
 struct Boids;
 
@@ -124,8 +132,10 @@ fn spawn_boids(
 ) {
     let boids: Vec<_> = (&mut generator.0)
         .sample_iter(Standard)
-        .map(|[x, y, vx, vy]: [f32; 4]| {
-            let velocity = (Vec2::new(vx, vy) - 0.5) * MAX_BOID_VELOCITY;
+        .map(|[x, y, vx, vy, vmag]: [f32; 5]| {
+            let velocity_direction = (Vec2::new(vx, vy) - 0.5).normalize();
+            let velocity =
+                velocity_direction * MIN_BOID_SPEED + velocity_direction * vmag * BOID_SPEED_RANGE;
             (
                 MaterialMesh2dBundle {
                     transform: Transform {
@@ -251,7 +261,20 @@ fn update_boid_velocity(
             velocity_update.y -= transform.translation.y;
             velocity.0 += velocity_update * COHESION_COEFFICIENT;
         }
+        if transform.translation.x < LEFT_MARGIN {
+            velocity.0.x += BOX_BOUND_COEFFICIENT;
+        }
+        if transform.translation.x > RIGHT_MARGIN {
+            velocity.0.x -= BOX_BOUND_COEFFICIENT;
+        }
+        if transform.translation.y < BOTTOM_MARGIN {
+            velocity.0.y += BOX_BOUND_COEFFICIENT;
+        }
+        if transform.translation.y > TOP_MARGIN {
+            velocity.0.y -= BOX_BOUND_COEFFICIENT;
+        }
         velocity.0 += separation.displacment_sum * SEPARATION_COEFFICIENT;
+        velocity.0 = velocity.0.clamp_length(MIN_BOID_SPEED, MAX_BOID_SPEED);
     }
 }
 
