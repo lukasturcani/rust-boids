@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::sprite::MaterialMesh2dBundle;
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -28,10 +29,12 @@ struct Boids;
 
 impl Plugin for Boids {
     fn build(&self, app: &mut App) {
+        app.add_plugin(EguiPlugin);
         app.insert_resource(FixedTime::new_from_secs(BOID_TIMESTEP));
         app.insert_resource(Generator(StdRng::seed_from_u64(55)));
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
+        app.add_system(ui);
         app.add_system(clear_separation.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_alignment.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_cohesion.in_schedule(CoreSchedule::FixedUpdate));
@@ -286,6 +289,12 @@ fn create_boid_mesh() -> Mesh {
     );
     mesh.set_indices(Some(Indices::U32(vec![0, 1, 2])));
     mesh
+}
+
+fn ui(mut contexts: EguiContexts) {
+    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
+        ui.label("world");
+    });
 }
 
 fn main() {
