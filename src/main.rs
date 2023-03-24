@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::render::mesh::Indices;
+use bevy::render::render_resource::PrimitiveTopology;
 use bevy::sprite::MaterialMesh2dBundle;
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
@@ -7,7 +9,7 @@ use rand::{Rng, SeedableRng};
 const BOID_TIMESTEP: f32 = 1.0 / 60.0;
 const NUM_BOIDS: usize = 200;
 const BOX_SIZE: f32 = 100.0;
-const MAX_BOID_VELOCITY: f32 = 2.0;
+const MAX_BOID_VELOCITY: f32 = 10.0;
 
 struct Boids;
 
@@ -45,21 +47,22 @@ fn spawn_boids(
 ) {
     let boids: Vec<_> = (&mut generator.0)
         .sample_iter(Standard)
-        .map(|[x, y, angle, vx, vy]: [f32; 5]| {
+        .map(|[x, y, vx, vy]: [f32; 4]| {
+            let velocity = (Vec2::new(vx, vy) - 0.5) * MAX_BOID_VELOCITY;
             (
                 MaterialMesh2dBundle {
                     transform: Transform {
                         translation: Vec3::new((x - 0.5) * BOX_SIZE, (y - 0.5) * BOX_SIZE, 0.0),
-                        rotation: Quat::from_rotation_z(angle),
+                        rotation: Quat::from_rotation_z(
+                            Vec2::new(0.0, 1.0).angle_between(velocity),
+                        ),
                         ..default()
                     },
-                    mesh: meshes
-                        .add(Mesh::from(shape::RegularPolygon::new(1.0, 3)))
-                        .into(),
+                    mesh: meshes.add(create_boid_mesh()).into(),
                     material: materials.add(ColorMaterial::from(Color::PURPLE)),
                     ..default()
                 },
-                Velocity((Vec2::new(vx, vy) - 0.5) * MAX_BOID_VELOCITY),
+                Velocity(velocity),
             )
         })
         .take(NUM_BOIDS)
@@ -73,6 +76,16 @@ fn move_boids(mut boids: Query<(&mut Transform, &Velocity)>, time_step: Res<Fixe
         transform.translation.x += velocity.0.x * time_step.period.as_secs_f32();
         transform.translation.y += velocity.0.y * time_step.period.as_secs_f32();
     }
+}
+
+fn create_boid_mesh() -> Mesh {
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        vec![[0.5, 2.5, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+    );
+    mesh.set_indices(Some(Indices::U32(vec![0, 1, 2])));
+    mesh
 }
 
 fn main() {
