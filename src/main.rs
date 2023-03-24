@@ -10,6 +10,8 @@ const BOID_TIMESTEP: f32 = 1.0 / 60.0;
 const NUM_BOIDS: usize = 200;
 const BOX_SIZE: f32 = 100.0;
 const MAX_BOID_VELOCITY: f32 = 10.0;
+const SEPARATION_RADIUS: f32 = 5.0;
+const SEPARATION_COEFFICIENT: f32 = 1.0;
 
 struct Boids;
 
@@ -19,7 +21,22 @@ impl Plugin for Boids {
         app.insert_resource(Generator(StdRng::seed_from_u64(55)));
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
-        app.add_system(move_boids.in_schedule(CoreSchedule::FixedUpdate));
+        app.add_system(clear_separation.in_schedule(CoreSchedule::FixedUpdate));
+        app.add_system(
+            calculate_separation
+                .after(clear_separation)
+                .in_schedule(CoreSchedule::FixedUpdate),
+        );
+        app.add_system(
+            update_boid_velocity
+                .after(calculate_separation)
+                .in_schedule(CoreSchedule::FixedUpdate),
+        );
+        app.add_system(
+            move_boids
+                .after(update_boid_velocity)
+                .in_schedule(CoreSchedule::FixedUpdate),
+        );
     }
 }
 
@@ -38,6 +55,19 @@ fn setup(mut commands: Commands) {
 
 #[derive(Component)]
 struct Velocity(Vec2);
+
+#[derive(Component)]
+struct Separation {
+    displacment_sum: Vec2,
+}
+
+impl Separation {
+    fn new() -> Self {
+        Self {
+            displacment_sum: Vec2::new(0.0, 0.),
+        }
+    }
+}
 
 fn spawn_boids(
     mut generator: ResMut<Generator>,
@@ -63,6 +93,7 @@ fn spawn_boids(
                     ..default()
                 },
                 Velocity(velocity),
+                Separation::new(),
             )
         })
         .take(NUM_BOIDS)
@@ -75,6 +106,38 @@ fn move_boids(mut boids: Query<(&mut Transform, &Velocity)>, time_step: Res<Fixe
     for (mut transform, velocity) in boids.iter_mut() {
         transform.translation.x += velocity.0.x * time_step.period.as_secs_f32();
         transform.translation.y += velocity.0.y * time_step.period.as_secs_f32();
+        transform.rotation = Quat::from_rotation_z(Vec2::new(0.0, 1.0).angle_between(velocity.0))
+    }
+}
+
+fn clear_separation(mut boids: Query<&mut Separation>) {
+    for mut separation in boids.iter_mut() {
+        separation.displacment_sum.x = 0.;
+        separation.displacment_sum.y = 0.;
+    }
+}
+
+fn calculate_separation(
+    mut boids: Query<(&Transform, &mut Separation)>,
+    _time_step: Res<FixedTime>,
+) {
+    let mut combinations = boids.iter_combinations_mut();
+    while let Some([(transform1, mut separation1), (transform2, mut separation2)]) =
+        combinations.fetch_next()
+    {
+        let displacement = transform1.translation - transform2.translation;
+        if displacement.length() < SEPARATION_RADIUS {
+            separation1.displacment_sum.x += displacement.x;
+            separation1.displacment_sum.y += displacement.y;
+            separation2.displacment_sum.x -= displacement.x;
+            separation2.displacment_sum.y -= displacement.y;
+        }
+    }
+}
+
+fn update_boid_velocity(mut boids: Query<(&mut Velocity, &Separation)>) {
+    for (mut velocity, separation) in boids.iter_mut() {
+        velocity.0 += separation.displacment_sum * SEPARATION_COEFFICIENT;
     }
 }
 
