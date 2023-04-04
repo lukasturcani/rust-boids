@@ -10,11 +10,6 @@ use rand::{Rng, SeedableRng};
 
 const BOID_TIMESTEP: f32 = 1.0 / 60.0;
 const NUM_BOIDS: usize = 200;
-const BOX_SIZE: f32 = 100.0;
-const LEFT_MARGIN: f32 = 0. - BOX_SIZE * 0.5;
-const RIGHT_MARGIN: f32 = BOX_SIZE * 0.5;
-const TOP_MARGIN: f32 = RIGHT_MARGIN;
-const BOTTOM_MARGIN: f32 = LEFT_MARGIN;
 
 struct Boids;
 
@@ -23,6 +18,7 @@ impl Plugin for Boids {
         app.add_plugin(EguiPlugin);
         app.insert_resource(FixedTime::new_from_secs(BOID_TIMESTEP));
         app.insert_resource(Generator(StdRng::seed_from_u64(55)));
+        app.insert_resource(BoxSize(100.0));
         app.insert_resource(MaxBoidSpeed(60.0));
         app.insert_resource(MinBoidSpeed(15.0));
         app.insert_resource(SeparationRadius(3.0));
@@ -81,6 +77,9 @@ fn setup(mut commands: Commands) {
         ..default()
     });
 }
+
+#[derive(Resource)]
+struct BoxSize(f32);
 
 #[derive(Resource)]
 struct MaxBoidSpeed(f32);
@@ -154,6 +153,7 @@ impl Cohesion {
 
 fn spawn_boids(
     mut generator: ResMut<Generator>,
+    box_size: Res<BoxSize>,
     max_speed: Res<MaxBoidSpeed>,
     min_speed: Res<MinBoidSpeed>,
     mut commands: Commands,
@@ -169,7 +169,7 @@ fn spawn_boids(
             (
                 MaterialMesh2dBundle {
                     transform: Transform {
-                        translation: Vec3::new((x - 0.5) * BOX_SIZE, (y - 0.5) * BOX_SIZE, 0.0),
+                        translation: Vec3::new((x - 0.5) * box_size.0, (y - 0.5) * box_size.0, 0.0),
                         rotation: Quat::from_rotation_z(
                             Vec2::new(0.0, 1.0).angle_between(velocity),
                         ),
@@ -282,6 +282,7 @@ fn calculate_cohesion(
 }
 
 fn update_boid_velocity(
+    box_size: Res<BoxSize>,
     min_speed: Res<MinBoidSpeed>,
     max_speed: Res<MaxBoidSpeed>,
     separation_coefficient: Res<SeparationCoefficient>,
@@ -296,6 +297,10 @@ fn update_boid_velocity(
         &mut Velocity,
     )>,
 ) {
+    let left_margin = 0. - box_size.0 * 0.5;
+    let right_margin = box_size.0 * 0.5;
+    let top_margin = right_margin;
+    let bottom_margin = left_margin;
     for (transform, separation, alignment, cohesion, mut velocity) in boids.iter_mut() {
         if alignment.num_neighbors > 0 {
             let velocity_update =
@@ -308,16 +313,16 @@ fn update_boid_velocity(
             velocity_update.y -= transform.translation.y;
             velocity.0 += velocity_update * cohesion_coefficient.0;
         }
-        if transform.translation.x < LEFT_MARGIN {
+        if transform.translation.x < left_margin {
             velocity.0.x += box_bound_coefficient.0;
         }
-        if transform.translation.x > RIGHT_MARGIN {
+        if transform.translation.x > right_margin {
             velocity.0.x -= box_bound_coefficient.0;
         }
-        if transform.translation.y < BOTTOM_MARGIN {
+        if transform.translation.y < bottom_margin {
             velocity.0.y += box_bound_coefficient.0;
         }
-        if transform.translation.y > TOP_MARGIN {
+        if transform.translation.y > top_margin {
             velocity.0.y -= box_bound_coefficient.0;
         }
         velocity.0 += separation.displacment_sum * separation_coefficient.0;
@@ -357,6 +362,7 @@ fn camera_scale(
 fn ui(
     mut contexts: EguiContexts,
     mut generator: ResMut<Generator>,
+    mut box_size: ResMut<BoxSize>,
     mut max_speed: ResMut<MaxBoidSpeed>,
     mut min_speed: ResMut<MinBoidSpeed>,
     mut separation_radius: ResMut<SeparationRadius>,
@@ -368,6 +374,7 @@ fn ui(
     mut boids: Query<(&mut Transform, &mut Velocity)>,
 ) {
     egui::Window::new("Parameters").show(contexts.ctx_mut(), |ui| {
+        ui.add(egui::Slider::new(&mut box_size.0, 0.0..=600.0).text("Box Size"));
         ui.add(egui::Slider::new(&mut min_speed.0, 0.0..=100.0).text("Min Boid Speed"));
         ui.add(egui::Slider::new(&mut max_speed.0, 0.0..=100.0).text("Max Boid Speed"));
         ui.add(egui::Slider::new(&mut separation_radius.0, 0.0..=100.0).text("Separation Radius"));
@@ -394,7 +401,8 @@ fn ui(
                 velocity.0 = velocity_direction * min_speed.0
                     + velocity_direction * vmag * (max_speed.0 - min_speed.0);
 
-                transform.translation = Vec3::new((x - 0.5) * BOX_SIZE, (y - 0.5) * BOX_SIZE, 0.0);
+                transform.translation =
+                    Vec3::new((x - 0.5) * box_size.0, (y - 0.5) * box_size.0, 0.0);
                 transform.rotation =
                     Quat::from_rotation_z(Vec2::new(0.0, 1.0).angle_between(velocity.0));
             }
