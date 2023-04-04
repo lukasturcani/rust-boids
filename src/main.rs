@@ -1,3 +1,4 @@
+use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::render_resource::PrimitiveTopology;
@@ -31,10 +32,10 @@ impl Plugin for Boids {
         app.insert_resource(AlignmentCoefficient(0.005));
         app.insert_resource(CohesionCoefficient(0.0005));
         app.insert_resource(BoxBoundCoefficient(0.2));
-        app.insert_resource(CameraScale(0.11));
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
         app.add_system(ui);
+        app.add_system(camera_scale);
         app.add_system(clear_separation.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_alignment.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_cohesion.in_schedule(CoreSchedule::FixedUpdate));
@@ -71,18 +72,15 @@ impl Plugin for Boids {
 #[derive(Resource)]
 struct Generator(pub StdRng);
 
-fn setup(mut commands: Commands, scale: Res<CameraScale>) {
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
-            scale: scale.0,
+            scale: 0.11,
             ..default()
         },
         ..default()
     });
 }
-
-#[derive(Resource)]
-struct CameraScale(f32);
 
 #[derive(Resource)]
 struct MaxBoidSpeed(f32);
@@ -337,9 +335,70 @@ fn create_boid_mesh() -> Mesh {
     mesh
 }
 
-fn ui(mut contexts: EguiContexts) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-        ui.label("world");
+fn camera_scale(
+    mut scroll_events: EventReader<MouseWheel>,
+    mut camera_projection: Query<&mut OrthographicProjection>,
+) {
+    use bevy::input::mouse::MouseScrollUnit;
+    for event in scroll_events.iter() {
+        match event.unit {
+            MouseScrollUnit::Line => {
+                let scale = camera_projection.single_mut().scale;
+                camera_projection.single_mut().scale = (scale + event.y * 0.25).clamp(0.01, 1.0);
+            }
+            MouseScrollUnit::Pixel => {
+                let scale = camera_projection.single_mut().scale;
+                camera_projection.single_mut().scale = (scale + event.y * 0.25).clamp(0.01, 1.0);
+            }
+        }
+    }
+}
+
+fn ui(
+    mut contexts: EguiContexts,
+    mut generator: ResMut<Generator>,
+    mut max_speed: ResMut<MaxBoidSpeed>,
+    mut min_speed: ResMut<MinBoidSpeed>,
+    mut separation_radius: ResMut<SeparationRadius>,
+    mut visible_radius: ResMut<VisibleRadius>,
+    mut separation_coefficient: ResMut<SeparationCoefficient>,
+    mut alignment_coefficient: ResMut<AlignmentCoefficient>,
+    mut cohesion_coefficient: ResMut<CohesionCoefficient>,
+    mut box_bound_coefficient: ResMut<BoxBoundCoefficient>,
+    mut boids: Query<(&mut Transform, &mut Velocity)>,
+) {
+    egui::Window::new("Parameters").show(contexts.ctx_mut(), |ui| {
+        ui.add(egui::Slider::new(&mut min_speed.0, 0.0..=100.0).text("Min Boid Speed"));
+        ui.add(egui::Slider::new(&mut max_speed.0, 0.0..=100.0).text("Max Boid Speed"));
+        ui.add(egui::Slider::new(&mut separation_radius.0, 0.0..=100.0).text("Separation Radius"));
+        ui.add(egui::Slider::new(&mut visible_radius.0, 0.0..=100.0).text("Visible Radius"));
+        ui.add(
+            egui::Slider::new(&mut separation_coefficient.0, 0.0..=1.0)
+                .text("Separation Coefficient"),
+        );
+        ui.add(
+            egui::Slider::new(&mut alignment_coefficient.0, 0.0..=1.0)
+                .text("Alignment Coefficient"),
+        );
+        ui.add(
+            egui::Slider::new(&mut cohesion_coefficient.0, 0.0..=1.0).text("Cohesion Coefficient"),
+        );
+        ui.add(
+            egui::Slider::new(&mut box_bound_coefficient.0, 0.0..=1.0)
+                .text("Box Bound Coefficient"),
+        );
+        if ui.button("Restart Simulation").clicked() {
+            for (mut transform, mut velocity) in boids.iter_mut() {
+                let [x, y, vx, vy, vmag]: [f32; 5] = generator.0.sample(Standard);
+                let velocity_direction = (Vec2::new(vx, vy) - 0.5).normalize();
+                velocity.0 = velocity_direction * min_speed.0
+                    + velocity_direction * vmag * (max_speed.0 - min_speed.0);
+
+                transform.translation = Vec3::new((x - 0.5) * BOX_SIZE, (y - 0.5) * BOX_SIZE, 0.0);
+                transform.rotation =
+                    Quat::from_rotation_z(Vec2::new(0.0, 1.0).angle_between(velocity.0));
+            }
+        }
     });
 }
 
