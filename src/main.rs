@@ -1,7 +1,9 @@
 use bevy::input::mouse::MouseWheel;
+use bevy::prelude::shape::Circle;
 use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::render_resource::PrimitiveTopology;
+use bevy::render::view::Visibility;
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy::window::PrimaryWindow;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
@@ -34,6 +36,7 @@ impl Plugin for Boids {
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
         app.add_system(ui);
+        app.add_system(mouse_outline);
         app.add_system(camera_scale);
         app.add_system(clear_separation.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_alignment.in_schedule(CoreSchedule::FixedUpdate));
@@ -71,7 +74,11 @@ impl Plugin for Boids {
 #[derive(Resource)]
 struct Generator(pub StdRng);
 
-fn setup(mut commands: Commands) {
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
             scale: 0.11,
@@ -79,6 +86,19 @@ fn setup(mut commands: Commands) {
         },
         ..default()
     });
+    commands.spawn((
+        MaterialMesh2dBundle {
+            transform: Transform {
+                translation: Vec3::new(0.0, 0.0, 0.0),
+                ..default()
+            },
+            mesh: meshes.add(Circle::new(1.0).into()).into(),
+            material: materials.add(ColorMaterial::from(Color::RED)),
+            visibility: Visibility::Hidden,
+            ..default()
+        },
+        MouseOutline,
+    ));
 }
 
 #[derive(Resource)]
@@ -113,6 +133,9 @@ struct BoxBoundCoefficient(f32);
 
 #[derive(Resource)]
 struct MouseFollowCoefficient(f32);
+
+#[derive(Component)]
+struct MouseOutline;
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -160,6 +183,7 @@ impl Cohesion {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_boids(
     mut generator: ResMut<Generator>,
     box_size: Res<BoxSize>,
@@ -178,7 +202,7 @@ fn spawn_boids(
             (
                 MaterialMesh2dBundle {
                     transform: Transform {
-                        translation: Vec3::new((x - 0.5) * box_size.0, (y - 0.5) * box_size.0, 0.0),
+                        translation: Vec3::new((x - 0.5) * box_size.0, (y - 0.5) * box_size.0, 1.0),
                         rotation: Quat::from_rotation_z(
                             Vec2::new(0.0, 1.0).angle_between(velocity),
                         ),
@@ -444,6 +468,30 @@ fn ui(
             }
         }
     });
+}
+
+fn mouse_outline(
+    mut mouse_outline_query: Query<(&mut Transform, &mut Visibility), With<MouseOutline>>,
+    window: Query<&Window, With<PrimaryWindow>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    outline_size: Res<MouseFollowRadius>,
+) {
+    let (mut mouse_outline_transform, mut mouse_outline_visiblity) =
+        mouse_outline_query.single_mut();
+
+    let (camera, camera_transform) = camera_query.single();
+    let cursor = window
+        .single()
+        .cursor_position()
+        .and_then(|position| camera.viewport_to_world_2d(camera_transform, position));
+    if let Some(cursor_position) = cursor {
+        mouse_outline_transform.translation.x = cursor_position.x;
+        mouse_outline_transform.translation.y = cursor_position.y;
+        *mouse_outline_visiblity = Visibility::Visible;
+        mouse_outline_transform.scale = Vec3::new(outline_size.0, outline_size.0, outline_size.0);
+    } else {
+        *mouse_outline_visiblity = Visibility::Hidden;
+    }
 }
 
 fn main() {
