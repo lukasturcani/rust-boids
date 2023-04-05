@@ -2,11 +2,11 @@
 default:
   @just --list
 
-#Build dev WASM.
+# Build dev WASM.
 build-dev-wasm:
   cargo build --target wasm32-unknown-unknown --profile dev
 
-# Run release WASM.
+# Build release WASM.
 build-release-wasm:
   cargo build --target wasm32-unknown-unknown --profile release-wasm
   wasm-bindgen --out-dir ./out --target web ./target/wasm32-unknown-unknown/release-wasm/rust-boids.wasm
