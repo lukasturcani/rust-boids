@@ -1,5 +1,5 @@
 use bevy::input::mouse::MouseWheel;
-use bevy::prelude::shape::Circle;
+use bevy::prelude::shape::{Circle, Quad};
 use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::render_resource::PrimitiveTopology;
@@ -10,6 +10,12 @@ use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+
+// const GRAY1: Color = Color::rgb(153. / 255., 153. / 255., 153. / 255.);
+// const GRAY2: Color = Color::rgb(119. / 255., 119. / 255., 119. / 255.);
+const GRAY3: Color = Color::rgb(85.0 / 255., 85. / 255., 85. / 255.);
+// const GRAY4: Color = Color::rgb(51. / 255., 51. / 255., 51. / 255.);
+const GRAY5: Color = Color::rgb(17. / 255., 17. / 255., 17. / 255.);
 
 const BOID_TIMESTEP: f32 = 1.0 / 60.0;
 const NUM_BOIDS: usize = 200;
@@ -37,6 +43,7 @@ impl Plugin for Boids {
         app.add_startup_system(spawn_boids);
         app.add_system(ui);
         app.add_system(mouse_outline);
+        app.add_system(box_outline);
         app.add_system(camera_scale);
         app.add_system(clear_separation.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_alignment.in_schedule(CoreSchedule::FixedUpdate));
@@ -89,15 +96,27 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             transform: Transform {
-                translation: Vec3::new(0.0, 0.0, 0.0),
+                translation: Vec3::new(0.0, 0.0, 0.1),
                 ..default()
             },
             mesh: meshes.add(Circle::new(1.0).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::RED)),
+            material: materials.add(ColorMaterial::from(GRAY3)),
             visibility: Visibility::Hidden,
             ..default()
         },
         MouseOutline,
+    ));
+    commands.spawn((
+        MaterialMesh2dBundle {
+            transform: Transform {
+                translation: Vec3::new(0.0, 0.0, 0.0),
+                ..default()
+            },
+            mesh: meshes.add(Quad::new(Vec2::new(1.0, 1.0)).into()).into(),
+            material: materials.add(ColorMaterial::from(GRAY5)),
+            ..default()
+        },
+        BoxOutline,
     ));
 }
 
@@ -136,6 +155,9 @@ struct MouseFollowCoefficient(f32);
 
 #[derive(Component)]
 struct MouseOutline;
+
+#[derive(Component)]
+struct BoxOutline;
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -209,7 +231,7 @@ fn spawn_boids(
                         ..default()
                     },
                     mesh: meshes.add(create_boid_mesh()).into(),
-                    material: materials.add(ColorMaterial::from(Color::PURPLE)),
+                    material: materials.add(ColorMaterial::from(Color::WHITE)),
                     ..default()
                 },
                 Velocity(velocity),
@@ -427,14 +449,10 @@ fn ui(
     mut boids: Query<(&mut Transform, &mut Velocity)>,
 ) {
     egui::Window::new("Parameters").show(contexts.ctx_mut(), |ui| {
-        ui.add(egui::Slider::new(&mut box_size.0, 0.0..=600.0).text("Box Size"));
         ui.add(egui::Slider::new(&mut min_speed.0, 0.0..=100.0).text("Min Boid Speed"));
         ui.add(egui::Slider::new(&mut max_speed.0, 0.0..=100.0).text("Max Boid Speed"));
         ui.add(egui::Slider::new(&mut separation_radius.0, 0.0..=100.0).text("Separation Radius"));
         ui.add(egui::Slider::new(&mut visible_radius.0, 0.0..=100.0).text("Visible Radius"));
-        ui.add(
-            egui::Slider::new(&mut mouse_follow_radius.0, 0.0..=100.0).text("Mouse Follow Radius"),
-        );
         ui.add(
             egui::Slider::new(&mut separation_coefficient.0, 0.0..=1.0)
                 .text("Separation Coefficient"),
@@ -446,9 +464,13 @@ fn ui(
         ui.add(
             egui::Slider::new(&mut cohesion_coefficient.0, 0.0..=1.0).text("Cohesion Coefficient"),
         );
+        ui.add(egui::Slider::new(&mut box_size.0, 0.0..=600.0).text("Box Size"));
         ui.add(
             egui::Slider::new(&mut box_bound_coefficient.0, 0.0..=1.0)
                 .text("Box Bound Coefficient"),
+        );
+        ui.add(
+            egui::Slider::new(&mut mouse_follow_radius.0, 0.0..=100.0).text("Mouse Follow Radius"),
         );
         ui.add(
             egui::Slider::new(&mut mouse_follow_coefficient.0, -1.0..=1.0)
@@ -462,7 +484,7 @@ fn ui(
                     + velocity_direction * vmag * (max_speed.0 - min_speed.0);
 
                 transform.translation =
-                    Vec3::new((x - 0.5) * box_size.0, (y - 0.5) * box_size.0, 0.0);
+                    Vec3::new((x - 0.5) * box_size.0, (y - 0.5) * box_size.0, 1.0);
                 transform.rotation =
                     Quat::from_rotation_z(Vec2::new(0.0, 1.0).angle_between(velocity.0));
             }
@@ -492,6 +514,11 @@ fn mouse_outline(
     } else {
         *mouse_outline_visiblity = Visibility::Hidden;
     }
+}
+
+fn box_outline(box_size: Res<BoxSize>, mut r#box: Query<&mut Transform, With<BoxOutline>>) {
+    let mut transform = r#box.single_mut();
+    transform.scale = Vec3::new(box_size.0, box_size.0, box_size.0);
 }
 
 fn main() {
