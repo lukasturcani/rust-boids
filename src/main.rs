@@ -290,6 +290,7 @@ fn calculate_cohesion(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_boid_velocity(
     box_size: Res<BoxSize>,
     min_speed: Res<MinBoidSpeed>,
@@ -384,6 +385,7 @@ fn camera_scale(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ui(
     mut contexts: EguiContexts,
     mut generator: ResMut<Generator>,
