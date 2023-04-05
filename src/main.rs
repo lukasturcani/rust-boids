@@ -14,7 +14,7 @@ use rand::{Rng, SeedableRng};
 // const GRAY1: Color = Color::rgb(153. / 255., 153. / 255., 153. / 255.);
 // const GRAY2: Color = Color::rgb(119. / 255., 119. / 255., 119. / 255.);
 const GRAY3: Color = Color::rgb(85.0 / 255., 85. / 255., 85. / 255.);
-// const GRAY4: Color = Color::rgb(51. / 255., 51. / 255., 51. / 255.);
+const GRAY4: Color = Color::rgb(51. / 255., 51. / 255., 51. / 255.);
 const GRAY5: Color = Color::rgb(17. / 255., 17. / 255., 17. / 255.);
 
 const BOID_TIMESTEP: f32 = 1.0 / 60.0;
@@ -27,6 +27,7 @@ impl Plugin for Boids {
         app.add_plugin(EguiPlugin);
         app.insert_resource(FixedTime::new_from_secs(BOID_TIMESTEP));
         app.insert_resource(Generator(StdRng::seed_from_u64(55)));
+        app.insert_resource(ClearColor(GRAY5));
         app.insert_resource(BoxSize(100.0));
         app.insert_resource(MaxBoidSpeed(60.0));
         app.insert_resource(MinBoidSpeed(15.0));
@@ -113,7 +114,7 @@ fn setup(
                 ..default()
             },
             mesh: meshes.add(Quad::new(Vec2::new(1.0, 1.0)).into()).into(),
-            material: materials.add(ColorMaterial::from(GRAY5)),
+            material: materials.add(ColorMaterial::from(GRAY4)),
             ..default()
         },
         BoxOutline,
