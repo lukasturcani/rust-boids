@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::Indices;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::sprite::MaterialMesh2dBundle;
+use bevy::window::PrimaryWindow;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use rand::distributions::Standard;
 use rand::rngs::StdRng;
@@ -21,6 +22,7 @@ impl Plugin for Boids {
         app.insert_resource(BoxSize(100.0));
         app.insert_resource(MaxBoidSpeed(60.0));
         app.insert_resource(MinBoidSpeed(15.0));
+        app.insert_resource(MouseFollowRadius(6.0));
         app.insert_resource(SeparationRadius(3.0));
         app.insert_resource(SeparationCoefficient(3.0));
         app.insert_resource(SeparationCoefficient(0.1));
@@ -28,6 +30,7 @@ impl Plugin for Boids {
         app.insert_resource(AlignmentCoefficient(0.005));
         app.insert_resource(CohesionCoefficient(0.0005));
         app.insert_resource(BoxBoundCoefficient(0.2));
+        app.insert_resource(MouseFollowCoefficient(0.0));
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
         app.add_system(ui);
@@ -88,6 +91,9 @@ struct MaxBoidSpeed(f32);
 struct MinBoidSpeed(f32);
 
 #[derive(Resource)]
+struct MouseFollowRadius(f32);
+
+#[derive(Resource)]
 struct SeparationRadius(f32);
 
 #[derive(Resource)]
@@ -104,6 +110,9 @@ struct CohesionCoefficient(f32);
 
 #[derive(Resource)]
 struct BoxBoundCoefficient(f32);
+
+#[derive(Resource)]
+struct MouseFollowCoefficient(f32);
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -285,10 +294,14 @@ fn update_boid_velocity(
     box_size: Res<BoxSize>,
     min_speed: Res<MinBoidSpeed>,
     max_speed: Res<MaxBoidSpeed>,
+    mouse_follow_radius: Res<MouseFollowRadius>,
     separation_coefficient: Res<SeparationCoefficient>,
     alignment_coefficient: Res<AlignmentCoefficient>,
     cohesion_coefficient: Res<CohesionCoefficient>,
     box_bound_coefficient: Res<BoxBoundCoefficient>,
+    mouse_follow_coefficient: Res<MouseFollowCoefficient>,
+    window: Query<&Window, With<PrimaryWindow>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
     mut boids: Query<(
         &Transform,
         &Separation,
@@ -301,6 +314,11 @@ fn update_boid_velocity(
     let right_margin = box_size.0 * 0.5;
     let top_margin = right_margin;
     let bottom_margin = left_margin;
+    let (camera, camera_transform) = camera_query.single();
+    let cursor = window
+        .single()
+        .cursor_position()
+        .and_then(|position| camera.viewport_to_world_2d(camera_transform, position));
     for (transform, separation, alignment, cohesion, mut velocity) in boids.iter_mut() {
         if alignment.num_neighbors > 0 {
             let velocity_update =
@@ -312,6 +330,13 @@ fn update_boid_velocity(
             velocity_update.x -= transform.translation.x;
             velocity_update.y -= transform.translation.y;
             velocity.0 += velocity_update * cohesion_coefficient.0;
+        }
+        if let Some(cursor_position) = cursor {
+            let translation = Vec2::new(transform.translation.x, transform.translation.y);
+            if translation.distance(cursor_position) < mouse_follow_radius.0 {
+                velocity.0 +=
+                    (cursor_position - translation).normalize() * mouse_follow_coefficient.0
+            }
         }
         if transform.translation.x < left_margin {
             velocity.0.x += box_bound_coefficient.0;
@@ -367,10 +392,12 @@ fn ui(
     mut min_speed: ResMut<MinBoidSpeed>,
     mut separation_radius: ResMut<SeparationRadius>,
     mut visible_radius: ResMut<VisibleRadius>,
+    mut mouse_follow_radius: ResMut<MouseFollowRadius>,
     mut separation_coefficient: ResMut<SeparationCoefficient>,
     mut alignment_coefficient: ResMut<AlignmentCoefficient>,
     mut cohesion_coefficient: ResMut<CohesionCoefficient>,
     mut box_bound_coefficient: ResMut<BoxBoundCoefficient>,
+    mut mouse_follow_coefficient: ResMut<MouseFollowCoefficient>,
     mut boids: Query<(&mut Transform, &mut Velocity)>,
 ) {
     egui::Window::new("Parameters").show(contexts.ctx_mut(), |ui| {
@@ -379,6 +406,9 @@ fn ui(
         ui.add(egui::Slider::new(&mut max_speed.0, 0.0..=100.0).text("Max Boid Speed"));
         ui.add(egui::Slider::new(&mut separation_radius.0, 0.0..=100.0).text("Separation Radius"));
         ui.add(egui::Slider::new(&mut visible_radius.0, 0.0..=100.0).text("Visible Radius"));
+        ui.add(
+            egui::Slider::new(&mut mouse_follow_radius.0, 0.0..=100.0).text("Mouse Follow Radius"),
+        );
         ui.add(
             egui::Slider::new(&mut separation_coefficient.0, 0.0..=1.0)
                 .text("Separation Coefficient"),
@@ -393,6 +423,10 @@ fn ui(
         ui.add(
             egui::Slider::new(&mut box_bound_coefficient.0, 0.0..=1.0)
                 .text("Box Bound Coefficient"),
+        );
+        ui.add(
+            egui::Slider::new(&mut mouse_follow_coefficient.0, -1.0..=1.0)
+                .text("Mouse Follow Coefficient"),
         );
         if ui.button("Restart Simulation").clicked() {
             for (mut transform, mut velocity) in boids.iter_mut() {
