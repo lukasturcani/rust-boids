@@ -17,10 +17,6 @@ jobs:
         with:
           key: build-cache
           path: ./target
-      - name: Load Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - name: Run cargo-check
         run: cargo check
 
@@ -34,10 +30,6 @@ jobs:
         with:
           key: build-cache
           path: ./target
-      - name: Load Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - name: Run clippy
         run: cargo clippy
 
@@ -51,10 +43,6 @@ jobs:
         with:
           key: build-cache
           path: ./target
-      - name: Load Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - name: Run cargo-test
         run: cargo test
 
