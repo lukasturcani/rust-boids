@@ -53,7 +53,7 @@ jobs:
           path: ./target
       - name: Run cargo-test
         # run: cargo test
-        run: ls -al ./target
+        run: ls -al ./target/debug
 
   cargo-fmt:
     runs-on: ubuntu-22.04
