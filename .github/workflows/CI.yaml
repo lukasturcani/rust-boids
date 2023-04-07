@@ -18,7 +18,7 @@ jobs:
           key: build-cache
           path: ./target
       - name: Run cargo-check
-        run: sudo apt-get install libasound2-dev && cargo check
+        run: sudo apt-get install libasound2-dev libudev-dev && cargo check
 
   clippy:
     runs-on: ubuntu-22.04
