@@ -57,3 +57,15 @@ jobs:
           toolchain: stable
       - name: Run cargo-test
         run: cargo test
+
+  cargo-fmt:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Load Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run cargo-fmt
+        run: cargo fmt --check
