@@ -34,6 +34,10 @@ jobs:
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libasound2-dev libudev-dev
       - name: Create build cache
         uses: actions/cache@v3
         with:
