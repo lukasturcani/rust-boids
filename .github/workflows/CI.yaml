@@ -17,9 +17,9 @@ jobs:
         with:
           packages: libasound2-dev libudev-dev
       - name: Create build cache
-        uses: actions/cache@v3
+        uses: actions/cache/restore@v3
         with:
-          key: build-cache
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
@@ -39,9 +39,9 @@ jobs:
         with:
           packages: libasound2-dev libudev-dev
       - name: Create build cache
-        uses: actions/cache@v3
+        uses: actions/cache/restore@v3
         with:
-          key: build-cache
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
@@ -63,7 +63,7 @@ jobs:
       - name: Create build cache
         uses: actions/cache@v3
         with:
-          key: build-cache
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
