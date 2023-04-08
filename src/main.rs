@@ -417,18 +417,9 @@ fn camera_scale(
     mut scroll_events: EventReader<MouseWheel>,
     mut camera_projection: Query<&mut OrthographicProjection>,
 ) {
-    use bevy::input::mouse::MouseScrollUnit;
     for event in scroll_events.iter() {
-        match event.unit {
-            MouseScrollUnit::Line => {
-                let scale = camera_projection.single_mut().scale;
-                camera_projection.single_mut().scale = (scale + event.y * 0.015).clamp(0.1, 1.0);
-            }
-            MouseScrollUnit::Pixel => {
-                let scale = camera_projection.single_mut().scale;
-                camera_projection.single_mut().scale = (scale + event.y * 0.005).clamp(0.1, 1.0);
-            }
-        }
+        let scale = camera_projection.single_mut().scale;
+        camera_projection.single_mut().scale = (scale + event.y.signum() * 0.1).clamp(0.1, 1.0);
     }
 }
 
