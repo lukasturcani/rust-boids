@@ -422,7 +422,7 @@ fn camera_scale(
         match event.unit {
             MouseScrollUnit::Line => {
                 let scale = camera_projection.single_mut().scale;
-                camera_projection.single_mut().scale = (scale + event.y * 0.25).clamp(0.1, 1.0);
+                camera_projection.single_mut().scale = (scale + event.y * 0.015).clamp(0.1, 1.0);
             }
             MouseScrollUnit::Pixel => {
                 let scale = camera_projection.single_mut().scale;
