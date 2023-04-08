@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
-  workflow_dispatch:
 
 jobs:
   release:
@@ -12,19 +11,33 @@ jobs:
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
-      - name: Install dependencies
+      - name: Install build dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: libasound2-dev libudev-dev
       - name: Create build cache
         uses: actions/cache@v3
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-release
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
+      - name: Install release dependencies
+        run: |
+          cargo install just wasm-bindgen-cli
+          rustup target add wasm32-unknown-unknown
       - name: Build
         run: just build-release-wasm
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-release
+          path: out/rust-boids-wasm.tar.gz
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: wasm-release
+          makeLatest: true
