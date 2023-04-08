@@ -36,5 +36,5 @@ jobs:
       - name: Create release
         uses: ncipollo/release-action@v1
         with:
-          path: out/rust-boids-wasm.tar.gz
+          artifacts: out/rust-boids-wasm.tar.gz
           makeLatest: true
