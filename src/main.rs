@@ -28,18 +28,18 @@ impl Plugin for Boids {
         app.insert_resource(FixedTime::new_from_secs(BOID_TIMESTEP));
         app.insert_resource(Generator(StdRng::seed_from_u64(55)));
         app.insert_resource(ClearColor(GRAY5));
-        app.insert_resource(BoxSize(100.0));
+        app.insert_resource(BoxSize(250.0));
         app.insert_resource(MaxBoidSpeed(60.0));
         app.insert_resource(MinBoidSpeed(15.0));
-        app.insert_resource(MouseFollowRadius(6.0));
+        app.insert_resource(MouseFollowRadius(60.0));
         app.insert_resource(SeparationRadius(3.0));
         app.insert_resource(SeparationCoefficient(3.0));
         app.insert_resource(SeparationCoefficient(0.1));
         app.insert_resource(VisibleRadius(6.0));
         app.insert_resource(AlignmentCoefficient(0.005));
         app.insert_resource(CohesionCoefficient(0.0005));
-        app.insert_resource(BoxBoundCoefficient(0.2));
-        app.insert_resource(MouseFollowCoefficient(0.0));
+        app.insert_resource(BoxBoundCoefficient(1.0));
+        app.insert_resource(MouseFollowCoefficient(1.0));
         app.add_startup_system(setup);
         app.add_startup_system(spawn_boids);
         app.add_system(ui);
@@ -89,7 +89,7 @@ fn setup(
 ) {
     commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
-            scale: 0.11,
+            scale: 0.5,
             ..default()
         },
         ..default()
