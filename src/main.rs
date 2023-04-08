@@ -524,7 +524,13 @@ fn box_outline(box_size: Res<BoxSize>, mut r#box: Query<&mut Transform, With<Box
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                canvas: Some("#bevy-canvas".to_string()),
+                ..default()
+            }),
+            ..default()
+        }))
         .add_plugin(Boids)
         .run();
 }
