@@ -27,6 +27,6 @@ jobs:
             ~/.cargo/git/db/
             target/
       - name: Install release dependencies
-        run: cargo install just wasm-bindgen-cli
+        run: cargo install just wasm-bindgen-cli && rustup target add wasm32-unknown-unknown
       - name: Build
         run: just build-release-wasm
