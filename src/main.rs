@@ -1,4 +1,3 @@
-use bevy::input::mouse::MouseWheel;
 use bevy::prelude::shape::{Circle, Quad};
 use bevy::prelude::*;
 use bevy::render::mesh::Indices;
@@ -45,7 +44,6 @@ impl Plugin for Boids {
         app.add_system(ui);
         app.add_system(mouse_outline);
         app.add_system(box_outline);
-        app.add_system(camera_scale);
         app.add_system(clear_separation.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_alignment.in_schedule(CoreSchedule::FixedUpdate));
         app.add_system(clear_cohesion.in_schedule(CoreSchedule::FixedUpdate));
@@ -413,16 +411,6 @@ fn create_boid_mesh() -> Mesh {
     mesh
 }
 
-fn camera_scale(
-    mut scroll_events: EventReader<MouseWheel>,
-    mut camera_projection: Query<&mut OrthographicProjection>,
-) {
-    for event in scroll_events.iter() {
-        let scale = camera_projection.single_mut().scale;
-        camera_projection.single_mut().scale = (scale + event.y.signum() * 0.1).clamp(0.1, 1.0);
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn ui(
     mut contexts: EguiContexts,
@@ -439,6 +427,7 @@ fn ui(
     mut box_bound_coefficient: ResMut<BoxBoundCoefficient>,
     mut mouse_follow_coefficient: ResMut<MouseFollowCoefficient>,
     mut boids: Query<(&mut Transform, &mut Velocity)>,
+    mut camera_projection: Query<&mut OrthographicProjection>,
 ) {
     egui::Window::new("Parameters").show(contexts.ctx_mut(), |ui| {
         ui.add(egui::Slider::new(&mut min_speed.0, 0.0..=100.0).text("Min Boid Speed"));
@@ -455,6 +444,10 @@ fn ui(
         );
         ui.add(
             egui::Slider::new(&mut cohesion_coefficient.0, 0.0..=1.0).text("Cohesion Coefficient"),
+        );
+        ui.add(
+            egui::Slider::new(&mut camera_projection.single_mut().scale, 0.1..=1.0)
+                .text("Camera Zoom"),
         );
         ui.add(egui::Slider::new(&mut box_size.0, 0.0..=600.0).text("Box Size"));
         ui.add(
