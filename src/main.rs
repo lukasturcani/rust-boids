@@ -32,7 +32,6 @@ impl Plugin for Boids {
         app.insert_resource(MinBoidSpeed(15.0));
         app.insert_resource(MouseFollowRadius(60.0));
         app.insert_resource(SeparationRadius(3.0));
-        app.insert_resource(SeparationCoefficient(3.0));
         app.insert_resource(SeparationCoefficient(0.1));
         app.insert_resource(VisibleRadius(6.0));
         app.insert_resource(AlignmentCoefficient(0.005));
